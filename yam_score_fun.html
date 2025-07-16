@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Score Yam</title>
+  <style>
+    body {
+      font-family: 'Comic Sans MS', sans-serif;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      color: #333;
+    }
+    h1 {
+      margin-top: 20px;
+      color: #fff;
+      text-shadow: 2px 2px #ff6f61;
+    }
+    .setup {
+      margin: 20px auto;
+      padding: 20px;
+      background: rgba(255,255,255,0.8);
+      border-radius: 15px;
+      max-width: 400px;
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px;
+    }
+    input, select, button {
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      margin: 5px 0;
+      width: 90%;
+      font-size: 16px;
+    }
+    button {
+      background: #ff6f61;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #ff3b2e;
+    }
+    .scoreboard {
+      margin: 20px;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255,255,255,0.9);
+      border-radius: 15px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    th {
+      background: #ff6f61;
+      color: white;
+    }
+    select.score, input.score-input {
+      width: 100%;
+      text-align: center;
+      font-size: 16px;
+      padding: 5px;
+      border: 2px solid #ff9a9e;
+      border-radius: 8px;
+      background: white;
+    }
+    .total {
+      font-weight: bold;
+      background: #ffe066;
+    }
+    .ranking {
+      margin: 20px auto;
+      padding: 15px;
+      background: rgba(255,255,255,0.85);
+      border-radius: 15px;
+      max-width: 400px;
+    }
+    .rank-item {
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 10px;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+    }
+    .first {
+      background: gold;
+      color: #000;
+    }
+    .second {
+      background: silver;
+      color: #000;
+    }
+    .third {
+      background: #cd7f32;
+      color: #fff;
+    }
+    .others {
+      background: #eee;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎲 Calculateur de Score Yam 🎲</h1>
+
+  <div class="setup" id="setup">
+    <label for="playersCount">Nombre de joueurs :</label>
+    <select id="playersCount">
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+    </select>
+
+    <div id="playerNames"></div>
+
+    <button onclick="startGame()">Commencer la partie 🎯</button>
+  </div>
+
+  <div class="scoreboard" id="scoreboard" style="display:none;"></div>
+
+  <div class="ranking" id="ranking" style="display:none;"></div>
+
+  <script>
+    const categories = [
+      "1", "2", "3", "4", "5", "6",
+      "TOTAL SUPÉRIEUR", "BONUS",
+      "Brelan", "Carré", "Full", "Petite Suite", "Grande Suite", "Yam", "Chance"
+    ];
+    let playersGlobal = [];
+
+    function generateNameInputs(count) {
+      let html = '';
+      for(let i=1; i<=count; i++) {
+        html += `<label>Nom du joueur ${i}</label><input type="text" id="player${i}" placeholder="Joueur ${i}">`;
+      }
+      document.getElementById('playerNames').innerHTML = html;
+    }
+
+    document.getElementById('playersCount').addEventListener('change', function(){
+      generateNameInputs(this.value);
+    });
+
+    generateNameInputs(document.getElementById('playersCount').value);
+
+    function createDropdownOptions(type, number) {
+      let options = '<option value="">-</option>';
+      if(type === 'upper') {
+        for(let i=number; i<=number*5; i+=number){
+          options += `<option value="${i}">${i}</option>`;
+        }
+        options += `<option value="0">Barré</option>`;
+      } else if(type === 'unique') {
+        options += `<option value="${number}">${number}</option>`;
+        options += `<option value="0">Barré</option>`;
+      } else {
+        options += `<option value="0">Barré</option>`;
+      }
+      return options;
+    }
+
+    function startGame() {
+      const count = document.getElementById('playersCount').value;
+      let players = [];
+      for(let i=1; i<=count; i++) {
+        let name = document.getElementById('player'+i).value || `Joueur ${i}`;
+        players.push(name);
+      }
+      playersGlobal = players;
+
+      let table = `<table><thead><tr><th>Catégorie</th>`;
+      players.forEach(p => table += `<th>${p}</th>`);
+      table += `</tr></thead><tbody>`;
+
+      categories.forEach(cat => {
+        table += `<tr><td>${cat}</td>`;
+        players.forEach((p,idx) => {
+          let options;
+          if(cat === "1" || cat === "2" || cat === "3" || cat === "4" || cat === "5" || cat === "6") {
+            options = createDropdownOptions('upper', parseInt(cat));
+            table += `<td><select class="score" onchange="updateTotals()" data-cat="${cat}" data-player="${idx}">${options}</select></td>`;
+          } else if(cat === "TOTAL SUPÉRIEUR" || cat === "BONUS") {
+            table += `<td id='${cat.replace(/ /g,'_')}_${idx}' class='total'>0</td>`;
+          } else if(cat === "Full" || cat === "Petite Suite" || cat === "Grande Suite" || cat === "Yam") {
+            options = createDropdownOptions('unique', (cat==="Full"||cat==="Petite Suite"?30:(cat==="Grande Suite"?40:50)));
+            table += `<td><select class="score" onchange="updateTotals()" data-cat="${cat}" data-player="${idx}">${options}</select></td>`;
+          } else if(cat === "Brelan" || cat === "Carré" || cat === "Chance") {
+            table += `<td><input class="score-input" type="number" min="0" onchange="updateTotals()" data-cat="${cat}" data-player="${idx}" placeholder="Score"></td>`;
+          }
+        });
+        table += `</tr>`;
+      });
+
+      table += `<tr class='total'><td>Total Final</td>`;
+      players.forEach((p,idx)=>{
+        table += `<td id='TOTAL_${idx}'>0</td>`;
+      });
+      table += `</tr>`;
+
+      table += `</tbody></table>`;
+
+      document.getElementById('setup').style.display = 'none';
+      document.getElementById('scoreboard').style.display = 'block';
+      document.getElementById('scoreboard').innerHTML = table;
+      document.getElementById('ranking').style.display = 'block';
+    }
+
+    function updateTotals(){
+      const count = document.getElementById('playersCount').value;
+      const catsUpper = ["1","2","3","4","5","6"];
+      let scores = [];
+
+      for(let p=0; p<count; p++){
+        let totalSup = 0;
+        let totalAll = 0;
+
+        document.querySelectorAll(`select[data-player='${p}']`).forEach(sel => {
+          let val = parseInt(sel.value) || 0;
+          totalAll += val;
+          if(catsUpper.includes(sel.dataset.cat)){
+            totalSup += val;
+          }
+        });
+
+        document.querySelectorAll(`input[data-player='${p}']`).forEach(inp => {
+          let val = parseInt(inp.value) || 0;
+          totalAll += val;
+        });
+
+        let bonus = totalSup >= 63 ? 35 : 0;
+        document.getElementById('TOTAL_SUPÉRIEUR_'+p).innerText = totalSup;
+        document.getElementById('BONUS_'+p).innerText = bonus;
+        let finalScore = totalAll + bonus;
+        document.getElementById('TOTAL_'+p).innerText = finalScore;
+        scores.push({name: playersGlobal[p], score: finalScore});
+      }
+      updateRanking(scores);
+    }
+
+    function updateRanking(scores){
+      scores.sort((a,b)=>b.score - a.score);
+      let html = `<h2>🏆 Classement en direct</h2>`;
+      scores.forEach((player, index)=>{
+        let cls = "others", emoji = "";
+        if(index===0){cls="first";emoji="🥇";}
+        else if(index===1){cls="second";emoji="🥈";}
+        else if(index===2){cls="third";emoji="🥉";}
+        html += `<div class='rank-item ${cls}'>${emoji} ${index+1}. ${player.name}<span>${player.score} pts</span></div>`;
+      });
+      document.getElementById('ranking').innerHTML = html;
+    }
+  </script>
+</body>
+</html>
